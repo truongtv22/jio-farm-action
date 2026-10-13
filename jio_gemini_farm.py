@@ -526,8 +526,8 @@ def save_row(num: int, mobile: str, panel: str, dev: str, status: str, url: str)
                 "n", "mobile", "panel", "device", "status", "url", "ts"))
             if not exists:
                 w.writeheader()
-            w.writerow({"n": num, "mobile": mobile, "panel": panel, "dev": dev,
-                        "device": dev, "status": status, "url": url,
+            w.writerow({"n": num, "mobile": mobile, "panel": panel, "device": dev,
+                        "status": status, "url": url,
                         "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
 
 
@@ -541,7 +541,8 @@ def file_count() -> int:
 def farm(args: argparse.Namespace) -> int:
     start = file_count()
     goal = start + args.target
-    log(f"=== FARM START — target {start} → {goal} link ===")
+    deadline = time.monotonic() + args.max_runtime * 60
+    log(f"=== FARM START — target {start} → {goal} link, runtime ≤{args.max_runtime}m ===")
 
     panels = discover_panels()
     state = load_json(STATE_FILE, {})
@@ -551,6 +552,9 @@ def farm(args: argparse.Namespace) -> int:
     sweep = 0
 
     while file_count() < goal:
+        if time.monotonic() > deadline:
+            log("=== HẾT GIỜ runtime → thoát, xuất kết quả hiện có ===")
+            break
         sweep += 1
         if sweep % 40 == 1 and sweep > 1:
             panels = discover_panels()   # refresh berkala
@@ -609,6 +613,8 @@ def farm(args: argparse.Namespace) -> int:
                 otp = wait_otp(dev, jio, mob)
                 if not otp:
                     stats["otp_timeout"] += 1
+                    save_row(len(stats), mob, dev["url"], dev["dev"],
+                             "otp_timeout", "")
                     log(f"  [-] otp_timeout {mob}")
                     time.sleep(random.uniform(*PACE))
                     continue
@@ -619,18 +625,24 @@ def farm(args: argparse.Namespace) -> int:
                     stats["already"] += 1
                     fired[mob] = time.time() + ALREADY_BLOCK_SEC
                     save_json(FIRED_FILE, fired)
+                    save_row(len(stats), mob, dev["url"], dev["dev"],
+                             "already", "")
                     log(f"  [-] {mob}: sudah pernah diklaim → blokir7 hari")
                     continue
                 if not url:
                     stats[status] += 1
+                    save_row(len(stats), mob, dev["url"], dev["dev"], status, "")
                     log(f"  [-] claim {mob}: {status}")
                     continue
                 if not entry_ok(url):
                     stats["entry_dead"] += 1
+                    save_row(len(stats), mob, dev["url"], dev["dev"],
+                             "entry_dead", "")
                     log(f"  [-] {mob}: entry mati di Google")
                     continue
                 n = save_link(url)
                 stats["links"] += 1
+                save_row(len(stats), mob, dev["url"], dev["dev"], "ok", url)
                 log(f"🎯 [FRESH {n}/{goal}] {mob} → {url}")
                 time.sleep(random.uniform(*PACE))
 
@@ -649,6 +661,8 @@ def main() -> int:
                     help="jumlah link baru yang dikejar (default10)")
     ap.add_argument("--sweep", type=int, default=20,
                     help="jeda antar sweep detik (default20)")
+    ap.add_argument("--max-runtime", type=int, default=25,
+                    help="batas runtime menit (default25)")
     ap.add_argument("--discover-only", action="store_true",
                     help="hanya refresh daftar panel lalu keluar")
     ap.add_argument("--discover", action="store_true",
