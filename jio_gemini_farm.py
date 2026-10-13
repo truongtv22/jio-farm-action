@@ -36,6 +36,7 @@ import argparse
 import csv
 import html
 import json
+import os
 import random
 import re
 import sys
@@ -69,6 +70,10 @@ BACKOFF_429 = 60
 LOCK_BLOCK_SEC = 1800         # nomor LOCKED → tunggu30 menit
 ALREADY_BLOCK_SEC = 7 * 86400 # nomor sudah diklaim → blokir7 hari
 WORKERS = 12
+
+# Telegram (opsional — GitHub Secrets: TG_BOT_TOKEN, TG_CHAT_ID)
+TG_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
+TG_CHAT = os.environ.get("TG_CHAT_ID", "")
 
 # Panel terbukti aktif (seed — hasil discover digabung di sini)
 SEED_PANELS = [
@@ -136,6 +141,17 @@ def log(msg: str) -> None:
     with _lock:
         with LOG_FILE.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
+
+
+def tg_notify(text: str) -> None:
+    """Gửi tin nhắn Telegram; im lặng nếu thiếu token/chat_id."""
+    if not (TG_TOKEN and TG_CHAT):
+        return
+    try:
+        requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+                      json={"chat_id": TG_CHAT, "text": text}, timeout=10)
+    except Exception:
+        pass
 
 
 def load_json(path: Path, default: Any) -> Any:
@@ -643,6 +659,8 @@ def farm(args: argparse.Namespace) -> int:
                 n = save_link(url)
                 stats["links"] += 1
                 save_row(len(stats), mob, dev["url"], dev["dev"], "ok", url)
+                tg_notify(f"🎯 Jio Farm — activation link mới #{n}\n"
+                          f"Số: {mob}\n{url}")
                 log(f"🎯 [FRESH {n}/{goal}] {mob} → {url}")
                 time.sleep(random.uniform(*PACE))
 
