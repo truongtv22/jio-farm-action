@@ -681,11 +681,21 @@ def main() -> int:
                     help="jeda antar sweep detik (default20)")
     ap.add_argument("--max-runtime", type=int, default=25,
                     help="batas runtime menit (default25)")
+    ap.add_argument("--test-notify", action="store_true",
+                    help="gửi 1 tin Telegram thử rồi thoát")
     ap.add_argument("--discover-only", action="store_true",
                     help="hanya refresh daftar panel lalu keluar")
     ap.add_argument("--discover", action="store_true",
                     help="paksa refresh daftar panel sebelum mulai")
     args = ap.parse_args()
+
+    if args.test_notify:
+        if not (TG_TOKEN and TG_CHAT):
+            print("TG CHẶN: thiếu TG_BOT_TOKEN/TG_CHAT_ID trong env")
+            return 1
+        tg_notify("✅ Jio Farm — test Telegram OK")
+        print("Đã gửi tin test → kiểm tra Telegram của bạn")
+        return 0
 
     panels = discover_panels(force=args.discover)
     if args.discover_only:

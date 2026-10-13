@@ -11,6 +11,10 @@ on:
         description: 'Maks runtime (menit)'
         required: true
         default: '30'
+      test_notify:
+        description: 'Chỉ gửi tin Telegram test rồi thoát'
+        required: false
+        default: 'false'
   schedule:
     - cron: '0 */2 * * *'
 
@@ -31,7 +35,12 @@ jobs:
         run: pip install requests
 
       - name: Execute Farm Script
-        run: python3 jio_gemini_farm.py --target ${{ inputs.target_links || 1 }} --sweep 60 --max-runtime ${{ inputs.max_runtime_minutes || 25 }}
+        run: |
+          if [ "${{ inputs.test_notify || 'false' }}" = "true" ]; then
+            python3 jio_gemini_farm.py --test-notify
+          else
+            python3 jio_gemini_farm.py --target ${{ inputs.target_links || 1 }} --sweep 60 --max-runtime ${{ inputs.max_runtime_minutes || 25 }}
+          fi
         env:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
