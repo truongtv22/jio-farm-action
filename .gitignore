@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+farm_panels.json
+farm_state.json
+farm_fired.json
+farm_jio_cache.json
+fresh_links.txt
+farm_results.csv
+farm.log
